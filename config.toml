@@ -1,0 +1,43 @@
+[system_info]
+OS = "Linux"
+OS_Version = "#82~20.04.1-Ubuntu SMP Thu Dec 19 05:24:09 UTC 2024"
+OS_Release = "5.15.0-1075-aws"
+Architecture = "64bit"
+Machine = "x86_64"
+Processor = "x86_64"
+Python_Version = "3.10.10"
+Python_Executable = "/home/zeus/miniconda3/envs/cloudspace/bin/python"
+Environment_Variables = [ "/commands", "/home/zeus/miniconda3/envs/cloudspace/bin", "/home/zeus/miniconda3/envs/cloudspace/bin", "/home/zeus/miniconda3/condabin", "/home/zeus/miniconda3/condabin", "/home/zeus/.local/bin", "/usr/local/cuda/bin", "/usr/local/nvidia/bin", "/usr/local/cuda/bin", "/opt/amazon/efa/bin", "/opt/aws-ofi-nccl/bin", "/teamspace/studios/this_studio/.cursor-server/cli/servers/Stable-fe574d0820377383143b2ea26aa6ae28b3425220/server/bin/remote-cli/bin", "/opt/amazon/efa/bin", "/opt/aws-ofi-nccl/bin", "/usr/local/cuda/bin", "/usr/local/nvidia/bin", "/usr/local/cuda/bin", "/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin", "/usr/games", "/home/zeus/miniconda3/condabin", "/home/zeus/.local/bin", "/usr/local/cuda/bin", "/usr/local/nvidia/bin", "/usr/local/cuda/bin", "/opt/amazon/efa/bin", "/opt/aws-ofi-nccl/bin", "/teamspace/studios/this_studio/.cursor-server/cli/servers/Stable-fe574d0820377383143b2ea26aa6ae28b3425220/server/bin/remote-cli/bin", "/opt/amazon/efa/bin", "/opt/aws-ofi-nccl/bin", "/usr/local/cuda/bin", "/usr/local/nvidia/bin", "/usr/local/cuda/bin", "/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin", "/usr/games",]
+
+[system_info.Disk_Usage]
+Total = "411.44 GB"
+Used = "27.02 GB"
+Free = "363.44 GB"
+Percentage_Used = "6.57%"
+
+[system_info.CPU_Details]
+Brand = "Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz"
+Arch = "X86_64"
+Bits = 64
+Count = 4
+Logical_Count = 8
+Flags = [ "3dnowprefetch", "abm", "adx", "aes", "aperfmperf", "apic", "arat", "avx", "avx2", "avx512_vnni", "avx512bw", "avx512cd", "avx512dq", "avx512f", "avx512vl", "avx512vnni", "bmi1", "bmi2", "clflush", "clflushopt", "clwb", "cmov", "constant_tsc", "cpuid", "cx16", "cx8", "de", "erms", "f16c", "fma", "fpu", "fsgsbase", "fxsr", "ht", "hypervisor", "ida", "invpcid", "invpcid_single", "lahf_lm", "lm", "mca", "mce", "mmx", "movbe", "mpx", "msr", "mtrr", "nonstop_tsc", "nopl", "nx", "ospke", "osxsave", "pae", "pat", "pcid", "pclmulqdq", "pdpe1gb", "pge", "pku", "pni", "popcnt", "pse", "pse36", "pti", "rdrand", "rdrnd", "rdseed", "rdtscp", "rep_good", "sep", "smap", "smep", "ss", "sse", "sse2", "sse4_1", "sse4_2", "ssse3", "syscall", "tsc", "tsc_adjust", "tsc_deadline_timer", "tsc_known_freq", "tscdeadline", "vme", "x2apic", "xgetbv1", "xsave", "xsavec", "xsaveopt", "xsaves", "xtopology",]
+Cache_Size = "N/A"
+L2_Cache_Size = 4194304
+L3_Cache_Size = 37486592
+
+[system_info.CUDA_Info]
+CUDA_Available = true
+[[system_info.CUDA_Info.Devices]]
+Index = 0
+Name = "Tesla T4"
+Memory_Total_MB = 15360
+Memory_Free_MB = 15101
+Memory_Used_MB = 258
+GPU_Utilization_Percent = 0
+Temperature_C = 23
+
+[system_info.CPU_Details.Frequency_MHz]
+current = 2799.9988749999998
+min = 0.0
+max = 0.0

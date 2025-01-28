@@ -1,0 +1,15 @@
+{
+  "name": "Cursor",
+  "version": "0.44.11",
+  "private": true,
+  "resolutions": {
+    "node-gyp-build": "4.8.1"
+  },
+  "scripts": {
+    "postinstall": "patch-package"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.0",
+    "postinstall-postinstall": "^2.1.0"
+  }
+}
