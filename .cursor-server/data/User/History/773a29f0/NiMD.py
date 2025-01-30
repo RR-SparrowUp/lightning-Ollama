@@ -103,7 +103,7 @@ def check_port_availability(port=11434):
 def kill_port_process(port=11434):
     """Kill any process using the specified port"""
     try:
-        # Get process IDs using the port
+        # Get process ID using the port
         result = subprocess.run(
             ['lsof', '-t', '-i', f':{port}'],
             capture_output=True,
@@ -111,28 +111,12 @@ def kill_port_process(port=11434):
         )
         
         if result.stdout.strip():
-            # Split PIDs and kill each process
-            pids = result.stdout.strip().split('\n')
-            for pid in pids:
-                try:
-                    pid = pid.strip()
-                    if pid:  # Only process non-empty PIDs
-                        subprocess.run(['kill', '-9', pid], 
-                                     check=True,
-                                     stderr=subprocess.DEVNULL)
-                        time.sleep(0.5)  # Small delay between kills
-                except subprocess.CalledProcessError:
-                    continue
-            
-            # Verify port is now free
-            time.sleep(1)  # Wait for processes to be killed
-            check_result = subprocess.run(
-                ['lsof', '-i', f':{port}'],
-                capture_output=True,
-                text=True
-            )
-            return check_result.stdout.strip() == ""
-        return True  # Return True if no processes found
+            # Kill the process if found
+            pid = result.stdout.strip()
+            subprocess.run(['kill', '-9', pid], check=True)
+            time.sleep(1)  # Wait for process to be killed
+            return True
+        return False
     except subprocess.CalledProcessError:
         return False
 
