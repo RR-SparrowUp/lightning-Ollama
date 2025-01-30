@@ -8,39 +8,8 @@ import os
 import time
 from chat_template import CaliforniaTopicTemplate
 from typing import List
-import threading
-import queue
-import re
 
 app = Flask(__name__)
-
-# Add this global variable for tracking download progress
-download_progress = {}
-
-# Add this at the top level, after the app initialization
-template = """
-{system_prompt}
-
-You are an enthusiastic California expert. Follow these guidelines:
-
-1. For California topics:
-   - Share detailed, accurate information enthusiastically
-   - Never apologize - you're meant to talk about California!
-   - Include specific facts and interesting details
-   - Encourage follow-up questions about the topic
-
-2. For non-California topics:
-   - Smoothly transition to a related California topic
-   - Share interesting California facts that relate to their interest
-   - Be natural and conversational
-
-Remember: You're an expert who loves sharing California knowledge. No need to apologize for staying on topic - that's your specialty!
-
-Previous conversation:
-{history}
-
-Current question: {input}
-Assistant: """
 
 def pull_model(model_name):
     """Pull the specified model using ollama"""
@@ -88,7 +57,30 @@ def initialize_model():
         base_url="http://localhost:11434"
     )
     
-    # Create conversation with the global template
+    template = """
+{system_prompt}
+
+You are an enthusiastic California expert. Follow these guidelines:
+
+1. For California topics:
+   - Share detailed, accurate information enthusiastically
+   - Never apologize - you're meant to talk about California!
+   - Include specific facts and interesting details
+   - Encourage follow-up questions about the topic
+
+2. For non-California topics:
+   - Smoothly transition to a related California topic
+   - Share interesting California facts that relate to their interest
+   - Be natural and conversational
+
+Remember: You're an expert who loves sharing California knowledge. No need to apologize for staying on topic - that's your specialty!
+
+Previous conversation:
+{history}
+
+Current question: {input}
+Assistant: """
+
     prompt = PromptTemplate(
         input_variables=["history", "input"],
         template=template,
@@ -101,7 +93,7 @@ def initialize_model():
             ai_prefix="Assistant",
             human_prefix="Human",
             return_messages=True,
-            k=5
+            k=5  # Remember last 5 exchanges
         ),
         prompt=prompt,
         verbose=True
@@ -192,98 +184,13 @@ def download_model():
         model_name = request.json.get('model')
         if not model_name:
             return jsonify({'success': False, 'error': 'No model specified'}), 400
-        
-        # Initialize progress tracking for this model
-        download_progress[model_name] = {
-            'status': 'starting',
-            'progress': 0,
-            'message': 'Starting download...'
-        }
-        
-        # Start download in background thread
-        thread = threading.Thread(
-            target=download_model_with_progress,
-            args=(model_name,)
-        )
-        thread.start()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Download started',
-            'model': model_name
-        })
-        
+            
+        if pull_model(model_name):
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to download model'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
-def download_model_with_progress(model_name):
-    """Download model and track progress"""
-    try:
-        # Start the download process
-        process = subprocess.Popen(
-            ['docker', 'exec', 'ollama', 'ollama', 'pull', model_name],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True
-        )
-        
-        # Update progress based on output
-        for line in process.stdout:
-            if 'pulling manifest' in line.lower():
-                download_progress[model_name] = {
-                    'status': 'downloading',
-                    'progress': 10,
-                    'message': 'Pulling manifest...'
-                }
-            elif 'downloading' in line.lower():
-                # Extract progress percentage if available
-                match = re.search(r'(\d+)%', line)
-                if match:
-                    progress = int(match.group(1))
-                    download_progress[model_name] = {
-                        'status': 'downloading',
-                        'progress': progress,
-                        'message': f'Downloading... {progress}%'
-                    }
-            elif 'verifying' in line.lower():
-                download_progress[model_name] = {
-                    'status': 'verifying',
-                    'progress': 95,
-                    'message': 'Verifying download...'
-                }
-        
-        # Check if download was successful
-        if process.wait() == 0:
-            download_progress[model_name] = {
-                'status': 'completed',
-                'progress': 100,
-                'message': 'Download completed successfully'
-            }
-        else:
-            download_progress[model_name] = {
-                'status': 'error',
-                'progress': 0,
-                'message': 'Download failed'
-            }
-            
-    except Exception as e:
-        download_progress[model_name] = {
-            'status': 'error',
-            'progress': 0,
-            'message': f'Error: {str(e)}'
-        }
-
-@app.route('/download_progress/<model_name>')
-def get_download_progress(model_name):
-    """Get current download progress for a model"""
-    if model_name not in download_progress:
-        return jsonify({
-            'status': 'not_found',
-            'progress': 0,
-            'message': 'Download not started'
-        })
-    
-    return jsonify(download_progress[model_name])
 
 @app.route('/list_models')
 def list_models():
@@ -327,62 +234,6 @@ def delete_model():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/switch_model', methods=['POST'])
-def switch_model():
-    """Switch to a different model"""
-    try:
-        new_model = request.json.get('model')
-        if not new_model:
-            return jsonify({'success': False, 'error': 'No model specified'}), 400
-
-        global model_name, llm, conversation
-        
-        # Check if model exists
-        if not check_model_exists(new_model):
-            return jsonify({'success': False, 'error': 'Model not found'}), 404
-
-        # Update model name
-        model_name = new_model
-        
-        # Reinitialize the model
-        llm = Ollama(
-            model=model_name,
-            base_url="http://localhost:11434"
-        )
-        
-        # Create new conversation with fresh history using the global template
-        prompt = PromptTemplate(
-            input_variables=["history", "input"],
-            template=template,
-            partial_variables={"system_prompt": CaliforniaTopicTemplate.SYSTEM_PROMPT}
-        )
-        
-        conversation = ConversationChain(
-            llm=llm,
-            memory=ConversationBufferMemory(
-                ai_prefix="Assistant",
-                human_prefix="Human",
-                return_messages=True,
-                k=5
-            ),
-            prompt=prompt,
-            verbose=True
-        )
-        
-        return jsonify({
-            'success': True,
-            'model': model_name
-        })
-        
-    except Exception as e:
-        print(f"Error switching model: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/get_model')
-def get_model():
-    """Get current model name"""
-    return jsonify({'model': model_name})
 
 if __name__ == '__main__':
     # Create templates directory if it doesn't exist

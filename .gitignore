@@ -68,3 +68,4 @@ __pycache__/
 #===============================================================================
 #End of .gitignore
 #===============================================================================
+git remote set-url origin https://<your_username>:<your_personal_access_token>@github.com/RR-SparrowUp/lightning-Ollama.gitssh-keygen -t ed25519 -C

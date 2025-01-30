@@ -7,118 +7,147 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
 import geopy 
-from Countrydetails import countries
-import json
+from Countrydetails import countries, country
+import random
 
 class CaliforniaTopicTemplate:
-    # Define the system prompt as a structured JSON
-    SYSTEM_CONFIG = {
-        "assistant_identity": {
-            "role": "Expert AI Assistant on California  ",
-            "expertise_level": "expert",
-            "knowledge_scope": "California-exclusive",
-            "response_style": "enthusiastic and informative"
-        },
-        "knowledge_domains": {
-            "history": [
-                "Native American history",
-                "Spanish colonial period",
-                "Gold Rush era",
-                "Statehood and development",
-                "20th century growth",
-                "Modern California history"
-            ],
-            "geography": [
-                "Natural landmarks",
-                "State regions",
-                "Climate zones",
-                "Geological features",
-                "Water systems",
-                "National/State parks"
-            ],
-            "culture": [
-                "Entertainment industry",
-                "Technology sector",
-                "Arts and music",
-                "Food and cuisine",
-                "Cultural diversity",
-                "Lifestyle trends"
-            ],
-            "economy": [
-                "Major industries",
-                "Silicon Valley",
-                "Agriculture",
-                "Tourism",
-                "International trade",
-                "Economic indicators"
-            ],
-            "government": [
-                "State structure",
-                "Legislative system",
-                "Executive branch",
-                "Judicial system",
-                "Local governments",
-                "Public policies"
-            ]
-        },
-        "response_rules": {
-            "must_include": [
-                "California-specific information",
-                "Relevant local examples",
-                "Accurate facts and data",
-                "Geographic context when applicable"
-            ],
-            "must_exclude": [
-                "Information about other states",
-                "Non-California locations",
-                "Unrelated topics",
-                "Generic responses"
-            ],
-            "off_topic_handling": {
-                "detection": "strict",
-                "response_template": "I apologize, but I can only discuss California-related topics. Would you like to learn about {suggested_topic} instead?",
-                "redirection_strategy": "suggest relevant California topic"
-            }
-        },
-        "topic_transitions": {
-            "countries_to_california": {
-                "culture": "California's {culture_aspect} compared to local traditions",
-                "geography": "California's {geography_feature} and natural wonders",
-                "economy": "California's economic relationships and trade",
-                "history": "California's historical connections and influences"
-            }
-        }
+    # Initialize country data
+    country_data = countries.all_countries()
+    
+    # Define California-related topics for suggestions
+    CALIFORNIA_TOPICS = {
+        'cities': [
+            'San Francisco\'s iconic Golden Gate Bridge and cable cars',
+            'Los Angeles\' Hollywood and entertainment scene',
+            'San Diego\'s beautiful beaches and perfect weather',
+            'Sacramento\'s role as the state capital'
+        ],
+        'nature': [
+            'Yosemite National Park\'s majestic valleys',
+            'Death Valley\'s extreme desert landscape',
+            'Redwood National Park\'s giant trees',
+            'Lake Tahoe\'s crystal clear waters'
+        ],
+        'culture': [
+            'Silicon Valley\'s tech innovation',
+            'California\'s diverse food scene',
+            'Wine country in Napa Valley',
+            'California\'s surfing culture'
+        ],
+        'history': [
+            'The Gold Rush era',
+            'Spanish colonial history',
+            'Native American heritage',
+            'California\'s path to statehood'
+        ]
     }
 
-    # Convert the config to a formatted system prompt
-    SYSTEM_PROMPT = f"""{{
-        "role_definition": {json.dumps(SYSTEM_CONFIG['assistant_identity'], indent=2)},
-        "knowledge_scope": {json.dumps(SYSTEM_CONFIG['knowledge_domains'], indent=2)},
-        "response_guidelines": {json.dumps(SYSTEM_CONFIG['response_rules'], indent=2)},
-        "topic_handling": {json.dumps(SYSTEM_CONFIG['topic_transitions'], indent=2)}
-    }}
+    @classmethod
+    def get_related_california_topic(cls, message: str) -> str:
+        """Get a contextually relevant California topic based on the user's message"""
+        try:
+            # Get list of all countries
+            all_countries = cls.country_data.countries()
+            
+            # Check if message mentions a country
+            for country_name in all_countries:
+                if country_name.lower() in message.lower():
+                    # Get country details using the country module
+                    country_info = country.country_details(country_name)
+                    
+                    # Match country attributes to California topics
+                    if country_info.capital():  # Has capital city
+                        return random.choice(cls.CALIFORNIA_TOPICS['cities'])
+                    elif country_info.temperature():  # Has temperature data
+                        return random.choice(cls.CALIFORNIA_TOPICS['nature'])
+                    elif country_info.languages():  # Has language data
+                        return random.choice(cls.CALIFORNIA_TOPICS['culture'])
+                    elif country_info.independence():  # Has independence data
+                        return random.choice(cls.CALIFORNIA_TOPICS['history'])
+                    
+            # If no country found or no specific match, use topic modeling
+            return cls.topic_based_suggestion(message)
+            
+        except Exception as e:
+            print(f"Error in get_related_california_topic: {e}")
+            # Fallback to random topic if error occurs
+            return random.choice([topic for topics in cls.CALIFORNIA_TOPICS.values() for topic in topics])
 
-STRICT OPERATIONAL RULES:
-1. ONLY provide information about California
-2. When detecting non-California topics:
-   - Immediately stop
-   - Use the redirection template
-   - Suggest a relevant California topic
-3. Always validate that responses contain California-specific content
-4. Never provide information about other locations
-5. Maintain topic focus on California exclusively
+    @classmethod
+    def topic_based_suggestion(cls, message: str) -> str:
+        """Use BERT embeddings to find the most relevant California topic"""
+        try:
+            # Tokenize and get embeddings for the message
+            inputs = cls.tokenizer(message, return_tensors="pt", padding=True, truncation=True)
+            with torch.no_grad():
+                outputs = cls.model(**inputs)
+            message_embedding = outputs.last_hidden_state.mean(dim=1)
 
-Example interactions:
+            # Get embeddings for each topic category
+            topic_scores = {}
+            for category, topics in cls.TOPIC_HIERARCHY.items():
+                topic_text = topics['description']
+                topic_inputs = cls.tokenizer(topic_text, return_tensors="pt", padding=True, truncation=True)
+                with torch.no_grad():
+                    topic_outputs = cls.model(**topic_inputs)
+                topic_embedding = topic_outputs.last_hidden_state.mean(dim=1)
+                
+                # Calculate similarity
+                similarity = torch.cosine_similarity(message_embedding, topic_embedding)
+                topic_scores[category] = similarity.item()
+
+            # Get the most relevant topic category
+            best_category = max(topic_scores.items(), key=lambda x: x[1])[0]
+            return random.choice(cls.CALIFORNIA_TOPICS[best_category])
+
+        except Exception as e:
+            print(f"Error in topic_based_suggestion: {e}")
+            return random.choice([topic for topics in cls.CALIFORNIA_TOPICS.values() for topic in topics])
+
+    @classmethod
+    def get_example_responses(cls):
+        """Get example responses with related California topics"""
+        return {
+            "new_york": f"I apologize, but I can only discuss California-related topics. Would you like to learn about {cls.get_related_california_topic('New York')}?",
+            "london": f"I apologize, but I can only discuss California-related topics. Would you like to learn about {cls.get_related_california_topic('London weather')}?"
+        }
+
+    # Define the system prompt using the example responses
+    @classmethod
+    def get_system_prompt(cls):
+        """Get the formatted system prompt"""
+        examples = cls.get_example_responses()
+        return f"""You are a knowledgeable assistant STRICTLY focused on California-related topics ONLY. 
+
+Your expertise includes:
+- California history and culture
+- Geography and natural landmarks
+- Cities and regions
+- Economy and industries
+- Politics and government
+- Tourism and attractions
+- Climate and environment
+- Current events in California
+
+STRICT GUIDELINES:
+1. ONLY answer questions about California
+2. If a user asks about non-California topics, ALWAYS respond with:
+   "I apologize, but I can only discuss California-related topics. Would you like to learn about [relevant California topic]?"
+3. Never provide information about other states or countries
+4. Keep all examples and analogies California-specific
+5. Redirect all off-topic questions back to California
+
+Example responses:
 User: "Tell me about New York"
-Assistant: "I apologize, but I can only discuss California-related topics. Would you like to learn about San Francisco's vibrant city life instead?"
+Assistant: {examples['new_york']}
 
 User: "What's the weather like in London?"
-Assistant: "I apologize, but I can only discuss California-related topics. Would you like to learn about California's diverse climate zones instead?"
+Assistant: {examples['london']}
 
-User: "Tell me about Japanese food"
-Assistant: "I apologize, but I can only discuss California-related topics. Would you like to learn about California's Japanese-influenced cuisine and sushi culture instead?"
+Remember: You must NEVER provide information about non-California topics."""
 
-REMEMBER: Every response must be California-focused, factual, and relevant to the state's aspects only."""
+    # Initialize the system prompt as a class attribute
+    SYSTEM_PROMPT = get_system_prompt.__func__()
 
     ## use topic modelling to understand best close topic to be suggested based on the known topics?
     # Topic categories for redirecting off-topic conversations

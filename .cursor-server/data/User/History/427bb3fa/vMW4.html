@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama Chat Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 60vh;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #e3f2fd;
+            margin-left: 20%;
+            margin-right: 5px;
+        }
+        .assistant-message {
+            background-color: #f5f5f5;
+            margin-right: 20%;
+            margin-left: 5px;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #user-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1976d2;
+        }
+        .model-info {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #666;
+        }
+        .typing-indicator {
+            display: none;
+            color: #666;
+            font-style: italic;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="model-info">
+        <h1>Ollama Chat Interface</h1>
+        <p>Connected to model: <span id="model-name">Loading...</span></p>
+    </div>
+    
+    <div class="chat-container" id="chat-container">
+        <!-- Messages will be added here -->
+    </div>
+    
+    <div class="typing-indicator" id="typing-indicator">
+        Assistant is thinking...
+    </div>
+    
+    <div class="input-container">
+        <input type="text" id="user-input" placeholder="Type your message here..." 
+               onkeypress="if(event.key === 'Enter') sendMessage()">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let modelName = 'Loading...';
+        
+        // Fetch model name on page load
+        fetch('/get_model')
+            .then(response => response.json())
+            .then(data => {
+                modelName = data.model;
+                document.getElementById('model-name').textContent = modelName;
+            });
+
+        function addMessage(content, isUser) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
+            messageDiv.textContent = content;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            
+            if (message) {
+                // Disable input while processing
+                input.disabled = true;
+                document.getElementById('typing-indicator').style.display = 'block';
+                
+                // Add user message to chat
+                addMessage(message, true);
+                
+                // Clear input
+                input.value = '';
+                
+                // Send message to backend (Updated URL from /chat to /chat_message)
+                fetch('/chat_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({message: message}),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Add assistant's response to chat
+                    addMessage(data.response, false);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    addMessage('Error: Could not get response from the assistant.', false);
+                })
+                .finally(() => {
+                    // Re-enable input
+                    input.disabled = false;
+                    document.getElementById('typing-indicator').style.display = 'none';
+                    input.focus();
+                });
+            }
+        }
+    </script>
+</body>
+</html> 

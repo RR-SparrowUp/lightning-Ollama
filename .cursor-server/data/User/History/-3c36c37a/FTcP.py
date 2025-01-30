@@ -17,31 +17,6 @@ app = Flask(__name__)
 # Add this global variable for tracking download progress
 download_progress = {}
 
-# Add this at the top level, after the app initialization
-template = """
-{system_prompt}
-
-You are an enthusiastic California expert. Follow these guidelines:
-
-1. For California topics:
-   - Share detailed, accurate information enthusiastically
-   - Never apologize - you're meant to talk about California!
-   - Include specific facts and interesting details
-   - Encourage follow-up questions about the topic
-
-2. For non-California topics:
-   - Smoothly transition to a related California topic
-   - Share interesting California facts that relate to their interest
-   - Be natural and conversational
-
-Remember: You're an expert who loves sharing California knowledge. No need to apologize for staying on topic - that's your specialty!
-
-Previous conversation:
-{history}
-
-Current question: {input}
-Assistant: """
-
 def pull_model(model_name):
     """Pull the specified model using ollama"""
     print(f"Pulling model {model_name}...")
@@ -88,7 +63,30 @@ def initialize_model():
         base_url="http://localhost:11434"
     )
     
-    # Create conversation with the global template
+    template = """
+{system_prompt}
+
+You are an enthusiastic California expert. Follow these guidelines:
+
+1. For California topics:
+   - Share detailed, accurate information enthusiastically
+   - Never apologize - you're meant to talk about California!
+   - Include specific facts and interesting details
+   - Encourage follow-up questions about the topic
+
+2. For non-California topics:
+   - Smoothly transition to a related California topic
+   - Share interesting California facts that relate to their interest
+   - Be natural and conversational
+
+Remember: You're an expert who loves sharing California knowledge. No need to apologize for staying on topic - that's your specialty!
+
+Previous conversation:
+{history}
+
+Current question: {input}
+Assistant: """
+
     prompt = PromptTemplate(
         input_variables=["history", "input"],
         template=template,
@@ -101,7 +99,7 @@ def initialize_model():
             ai_prefix="Assistant",
             human_prefix="Human",
             return_messages=True,
-            k=5
+            k=5  # Remember last 5 exchanges
         ),
         prompt=prompt,
         verbose=True
@@ -351,13 +349,7 @@ def switch_model():
             base_url="http://localhost:11434"
         )
         
-        # Create new conversation with fresh history using the global template
-        prompt = PromptTemplate(
-            input_variables=["history", "input"],
-            template=template,
-            partial_variables={"system_prompt": CaliforniaTopicTemplate.SYSTEM_PROMPT}
-        )
-        
+        # Create new conversation with fresh history
         conversation = ConversationChain(
             llm=llm,
             memory=ConversationBufferMemory(
@@ -366,7 +358,11 @@ def switch_model():
                 return_messages=True,
                 k=5
             ),
-            prompt=prompt,
+            prompt=PromptTemplate(
+                input_variables=["history", "input"],
+                template=template,
+                partial_variables={"system_prompt": CaliforniaTopicTemplate.SYSTEM_PROMPT}
+            ),
             verbose=True
         )
         
